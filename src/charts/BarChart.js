@@ -1,11 +1,7 @@
-import React from 'react';
-import {
-  StyleSheet,
-  Animated,
-  View,
-} from 'react-native';
-import styled from 'styled-components/native';
-import BarChart from 'react-native-svg-charts/src/bar-chart/bar-chart';
+import React from "react";
+import { StyleSheet, Animated, View } from "react-native";
+import styled from "styled-components/native";
+import BarChart from "react-native-svg-charts/src/bar-chart/bar-chart";
 
 // const defaultProps = {
 //     chartProps: {
@@ -14,8 +10,15 @@ import BarChart from 'react-native-svg-charts/src/bar-chart/bar-chart';
 // };
 const AnimatedBarChart = Animated.createAnimatedComponent(BarChart);
 
-
 class DefaultBarChart extends React.PureComponent {
+  constructor(props) {
+    super(props);
+
+    const { algorithm, min, max } = this.props;
+
+    this.initialPos = new Animated.Value(algorithm.getPosition(0, min, max));
+  }
+
   render() {
     const {
       data,
@@ -23,54 +26,72 @@ class DefaultBarChart extends React.PureComponent {
       chartColor,
       backgroundColor,
       style,
-      children,
+      children
     } = this.props;
 
-    const {
-      handlePos, width,
-    } = this.props;
-    const pos = handlePos[1].interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, width],
-      // extrapolate: 'clamp',
-    }, { useNativeDriver: true });
+    const { handlePos, width } = this.props;
+    const pos = handlePos[handlePos.length > 1 ? 1 : 0].interpolate(
+      {
+        inputRange: [0, 100],
+        outputRange: [0, width]
+        // extrapolate: 'clamp',
+      },
+      { useNativeDriver: true }
+    );
 
-    const prevValue = handlePos[0].interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, -width],
-      // extrapolate: 'clamp',
-    }, { useNativeDriver: true });
-    const prevPos = handlePos[0].interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, width],
-      // extrapolate: 'clamp',
-    }, { useNativeDriver: true });
+    const prevValue = (handlePos.length > 1
+      ? handlePos[0]
+      : this.initialPos
+    ).interpolate(
+      {
+        inputRange: [0, 100],
+        outputRange: [0, -width]
+        // extrapolate: 'clamp',
+      },
+      { useNativeDriver: true }
+    );
+    const prevPos = (handlePos.length > 1
+      ? handlePos[0]
+      : this.initialPos
+    ).interpolate(
+      {
+        inputRange: [0, 100],
+        outputRange: [0, width]
+        // extrapolate: 'clamp',
+      },
+      { useNativeDriver: true }
+    );
     const diffValue = Animated.add(pos, prevValue);
 
     return (
       <View style={[style]}>
         <BarChart
-          style={{ height: '100%' }}
+          style={{ height: "100%" }}
           data={data}
           svg={{
             fill: backgroundColor,
-            strokeWidth: 0,
+            strokeWidth: 0
           }}
           {...chartProps}
         />
-        <Animated.View style={{
-          ...StyleSheet.absoluteFillObject,
-          width: diffValue,
-          height: '100%',
-          transform: [{ translateX: prevPos }],
-          overflow: 'hidden',
-        }}
+        <Animated.View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            width: diffValue,
+            height: "100%",
+            transform: [{ translateX: prevPos }],
+            overflow: "hidden"
+          }}
         >
           <AnimatedBarChart
-            style={{ transform: [{ translateX: prevValue }], height: '100%', width }}
+            style={{
+              transform: [{ translateX: prevValue }],
+              height: "100%",
+              width
+            }}
             data={data}
             svg={{
-              fill: chartColor,
+              fill: chartColor
             }}
             {...chartProps}
           >
@@ -83,15 +104,18 @@ class DefaultBarChart extends React.PureComponent {
 }
 
 const DefaultStyledBarChart = styled(DefaultBarChart).attrs(props => ({
-  chartColor: (props.theme.rheostat && props.theme.rheostat.themeColor) || 'palevioletred',
-  backgroundColor: (props.theme.rheostat && props.theme.rheostat.grey) || '#d8d8d8',
+  chartColor:
+    (props.theme.rheostat && props.theme.rheostat.themeColor) ||
+    "palevioletred",
+  backgroundColor:
+    (props.theme.rheostat && props.theme.rheostat.grey) || "#d8d8d8"
 }))`
-   height: 100px;
+  height: 100px;
 `;
 DefaultStyledBarChart.defaultProps = {
   chartProps: {
-    contentInset: { top: 10, bottom: 0 },
+    contentInset: { top: 10, bottom: 0 }
   },
-  children: null,
+  children: null
 };
 export default DefaultStyledBarChart;
