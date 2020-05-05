@@ -1,5 +1,11 @@
 import React from "react";
-import { View, StyleSheet, Animated, PanResponder } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Animated,
+  PanResponder,
+  TouchableOpacity
+} from "react-native";
 import PropTypes from "prop-types";
 import {
   HORIZONTAL,
@@ -66,6 +72,7 @@ const withRheostat = (ChartCompo = null) => {
       this.moveSlide = this.moveSlide.bind(this);
       this.validatePosition = this.validatePosition.bind(this);
       this.getNextState = this.getNextState.bind(this);
+      this.handleClick = this.handleClick.bind(this);
       this.pitStyleCache = {};
     }
 
@@ -225,6 +232,30 @@ const withRheostat = (ChartCompo = null) => {
       if (onValuesUpdated) onValuesUpdated(this.getPublicState());
     }
 
+    handleClick(evt) {
+      if (evt.nativeEvent.locationX === null) return;
+      let idx = 0;
+      const {
+        handlePos,
+        containerSize: { width }
+      } = this.state;
+      const proposedPosition =
+        (evt.nativeEvent.locationX / width) * PERCENT_FULL;
+      if (
+        handlePos.length > 1 &&
+        // eslint-disable-next-line no-underscore-dangle
+        Math.abs(handlePos[0].__getValue() - proposedPosition) >
+          // eslint-disable-next-line no-underscore-dangle
+          Math.abs(handlePos[1].__getValue() - proposedPosition)
+      ) {
+        idx = 1;
+      }
+      const { onValuesUpdated } = this.props;
+      const snapPosition = this.getSnapPosition(proposedPosition);
+      this.getNextState(idx, snapPosition);
+      if (onValuesUpdated) onValuesUpdated(this.getPublicState());
+    }
+
     endSlide(idx, gestureState) {
       const { onSliderDragEnd } = this.props;
       if (onSliderDragEnd) onSliderDragEnd();
@@ -270,100 +301,104 @@ const withRheostat = (ChartCompo = null) => {
       const { handlePos, containerSize } = this.state;
 
       return (
-        <View
-          style={[
-            {
-              marginTop: 30,
-              marginHorizontal: 10,
-              position: "relative"
-            }
-          ]}
-        >
-          {ChartCompo && (
-            <ChartCompo
-              handlePos={handlePos}
-              data={svgData}
-              width={containerSize.width}
-              theme={theme}
-              min={min}
-              max={max}
-              algorithm={algorithm}
-            />
-          )}
-          {handlePos.map((value, idx) => {
-            const pos = value.interpolate(
-              {
-                inputRange: [0, 100],
-                outputRange: [0, containerSize.width]
-              },
-              { useNativeDriver: true }
-            );
-            const handleStyle =
-              orientation === "vertical"
-                ? { transform: [{ translateY: pos }] }
-                : { transform: [{ translateX: pos }] };
-            return (
-              <Animated.View
-                style={[Style.handleContainer, handleStyle]}
-                {...this._panResponders[idx].panHandlers}
-                onLayout={this.getHandleDimensions}
-                renderToHardwareTextureAndroid
-                key={`handle-${idx}`}
-              >
-                <Handle theme={theme} style={[Style.handle]} />
-              </Animated.View>
-            );
-          })}
+        <TouchableOpacity activeOpacity={1} onPressIn={this.handleClick}>
           <View
-            onLayout={this.getRheostatDimensions}
             style={[
-              Style.container,
-              orientation === "horizontal" && Style.rheostatHorizontal
+              {
+                marginTop: 30,
+                marginHorizontal: 10,
+                position: "relative"
+              }
             ]}
           >
-            <View
-              style={[
-                Style.rheostatBackground,
-                Style.rheostatHorizontalBackground
-              ]}
-            />
-            {handlePos.map((value, idx, arr) => {
-              if (idx === 0 && arr.length > 1) {
-                return null;
-              }
+            {ChartCompo && (
+              <ChartCompo
+                handlePos={handlePos}
+                data={svgData}
+                width={containerSize.width}
+                theme={theme}
+                min={min}
+                max={max}
+                algorithm={algorithm}
+              />
+            )}
+            {handlePos.map((value, idx) => {
+              const pos = value.interpolate(
+                {
+                  inputRange: [0, 100],
+                  outputRange: [0, containerSize.width]
+                },
+                { useNativeDriver: true }
+              );
+              const handleStyle =
+                orientation === "vertical"
+                  ? { transform: [{ translateY: pos }] }
+                  : { transform: [{ translateX: pos }] };
               return (
                 <Animated.View
-                  key={`progress-bar-${idx}`}
+                  style={[Style.handleContainer, handleStyle]}
+                  {...this._panResponders[idx].panHandlers}
+                  onLayout={this.getHandleDimensions}
                   renderToHardwareTextureAndroid
-                  style={[
-                    { position: "absolute", height: "auto" },
-                    this.getProgressStyle(idx)
-                  ]}
+                  key={`handle-${idx}`}
                 >
-                  <ProgressBar theme={theme} />
+                  <Handle theme={theme} style={[Style.handle]} />
                 </Animated.View>
               );
             })}
-            {PitComponent &&
-              pitPoints.map(n => {
-                let pitStyle = this.pitStyleCache[n];
-                if (!pitStyle) {
-                  const pos = algorithm.getPosition(n, min, max);
-                  pitStyle =
-                    orientation === "vertical"
-                      ? { top: `${pos}%`, position: "absolute" }
-                      : { left: `${pos}%`, position: "absolute" };
-                  this.pitStyleCache[n] = pitStyle;
+            <View
+              onLayout={this.getRheostatDimensions}
+              style={[
+                Style.container,
+                orientation === "horizontal" && Style.rheostatHorizontal
+              ]}
+            >
+              <View
+                style={[
+                  Style.rheostatBackground,
+                  Style.rheostatHorizontalBackground
+                ]}
+              />
+              {handlePos.map((value, idx, arr) => {
+                if (idx === 0 && arr.length > 1) {
+                  return null;
                 }
                 return (
-                  <PitComponent key={`pit-${n}`} style={pitStyle}>
-                    {n}
-                  </PitComponent>
+                  <Animated.View
+                    key={`progress-bar-${idx}`}
+                    renderToHardwareTextureAndroid
+                    style={[
+                      { position: "absolute", height: "auto" },
+                      this.getProgressStyle(idx)
+                    ]}
+                  >
+                    <TouchableOpacity activeOpacity={1}>
+                      <ProgressBar theme={theme} />
+                    </TouchableOpacity>
+                  </Animated.View>
                 );
               })}
-            {children}
+              {PitComponent &&
+                pitPoints.map(n => {
+                  let pitStyle = this.pitStyleCache[n];
+                  if (!pitStyle) {
+                    const pos = algorithm.getPosition(n, min, max);
+                    pitStyle =
+                      orientation === "vertical"
+                        ? { top: `${pos}%`, position: "absolute" }
+                        : { left: `${pos}%`, position: "absolute" };
+                    this.pitStyleCache[n] = pitStyle;
+                  }
+                  return (
+                    <PitComponent key={`pit-${n}`} style={pitStyle}>
+                      {n}
+                    </PitComponent>
+                  );
+                })}
+              {children}
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       );
     }
   }
